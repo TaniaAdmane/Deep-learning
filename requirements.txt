@@ -1,0 +1,24 @@
+# PyTorch et Vision
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Métriques perceptuelles
+lpips>=0.1.4
+
+# Logging et monitoring
+tensorboard>=2.13.0
+
+# Traitement d'images
+Pillow>=9.5.0
+scikit-image>=0.21.0
+
+# Visualisation
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Utilitaires
+tqdm>=4.65.0
+numpy>=1.24.0
+
+# Optionnel mais recommandé
+scipy>=1.10.0

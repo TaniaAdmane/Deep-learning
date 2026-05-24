@@ -13,7 +13,7 @@ import argparse
 from tqdm import tqdm
 import numpy as np
 
-from models.vae_restoration import VAE_Restoration
+from models.vae_restoration import VAE_Restoration, vae_loss
 from dataset import create_dataloaders
 from metrics import MetricsCalculator, MetricsTracker
 import lpips
@@ -53,8 +53,7 @@ class VAETrainer:
             self.optimizer,
             mode='min',
             factor=0.5,
-            patience=5,
-            verbose=True
+            patience=5
         )
         
         # LPIPS pour loss perceptuelle

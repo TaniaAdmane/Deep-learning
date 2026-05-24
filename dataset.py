@@ -44,13 +44,9 @@ class ImageRestorationDataset(Dataset):
         self.augment = augment
         self.is_train = is_train
         
-        # Lister les images (supposer même structure dans clean et degraded)
-        self.image_names = sorted([f.name for f in self.clean_dir.glob("*.png")])
-        
-        if len(self.image_names) == 0:
-            self.image_names = sorted([f.name for f in self.clean_dir.glob("*.jpg")])
-        
-        print(f"Found {len(self.image_names)} image pairs in {clean_dir}")
+        # Lister les images en recherchant récursivement dans les dossiers
+        self.image_pairs = self._find_image_pairs(self.clean_dir, self.degraded_dir)
+        print(f"Found {len(self.image_pairs)} image pairs in {clean_dir}")
         
         # Transformations
         self.to_tensor = transforms.ToTensor()  # [0, 1]
@@ -65,9 +61,9 @@ class ImageRestorationDataset(Dataset):
     
     def __len__(self):
         if self.is_train:
-            return len(self.image_names) * self.num_patches_per_image
+            return len(self.image_pairs) * self.num_patches_per_image
         else:
-            return len(self.image_names)
+            return len(self.image_pairs)
     
     def _load_image(self, path):
         """Charge une image et convertit en RGB"""
@@ -84,37 +80,86 @@ class ImageRestorationDataset(Dataset):
         left = random.randint(0, img_width - self.patch_size)
         top = random.randint(0, img_height - self.patch_size)
         return top, left
+
+    def _find_image_pairs(self, clean_dir, degraded_dir):
+        """Recherche récursive des images propres et dégradées et crée une liste de paires."""
+        clean_dir = Path(clean_dir)
+        degraded_dir = Path(degraded_dir)
+
+        clean_relpaths = []
+        for ext in ['png', 'jpg', 'jpeg']:
+            clean_relpaths.extend(sorted([p.relative_to(clean_dir) for p in clean_dir.rglob(f'*.{ext}')]))
+
+        clean_relpaths = sorted(set(clean_relpaths))
+        degraded_relpaths = []
+        for ext in ['png', 'jpg', 'jpeg']:
+            degraded_relpaths.extend(sorted([p.relative_to(degraded_dir) for p in degraded_dir.rglob(f'*.{ext}')]))
+
+        degraded_set = set(degraded_relpaths)
+        degraded_parent_map = {}
+        for p in degraded_relpaths:
+            degraded_parent_map.setdefault(p.parent, []).append(p)
+
+        pairs = []
+        for clean_rel in clean_relpaths:
+            if clean_rel in degraded_set:
+                pairs.append((clean_rel, clean_rel))
+                continue
+
+            candidate = clean_rel.with_name(clean_rel.stem + 'x2' + clean_rel.suffix)
+            if candidate in degraded_set:
+                pairs.append((clean_rel, candidate))
+                continue
+
+            siblings = degraded_parent_map.get(clean_rel.parent, [])
+            matches = [p for p in siblings if p.stem == clean_rel.stem or p.stem.startswith(clean_rel.stem + 'x2')]
+            if len(matches) == 1:
+                pairs.append((clean_rel, matches[0]))
+                continue
+            elif len(matches) > 1:
+                pairs.append((clean_rel, sorted(matches)[0]))
+                continue
+
+            print(f"Warning: No degraded pair found for {clean_rel}")
+        return pairs
     
     def __getitem__(self, idx):
+        for _ in range(10):
+            try:
+                return self._load_item(idx)
+            except Exception:
+                idx = random.randint(0, len(self) - 1)
+        return self._load_item(idx)
+
+    def _load_item(self, idx):
         if self.is_train:
             # Mode training: extraire patches aléatoires
             img_idx = idx // self.num_patches_per_image
-            img_name = self.image_names[img_idx]
-            
+            clean_relpath, degraded_relpath = self.image_pairs[img_idx]
+
             # Charger images complètes
-            clean_img = self._load_image(self.clean_dir / img_name)
-            degraded_img = self._load_image(self.degraded_dir / img_name)
-            
+            clean_img = self._load_image(self.clean_dir / clean_relpath)
+            degraded_img = self._load_image(self.degraded_dir / degraded_relpath)
+
             # Coordonnées aléatoires (mêmes pour clean et degraded)
             top, left = self._get_random_patch_coords(clean_img.width, clean_img.height)
-            
+
             # Extraire patches
             clean_patch = self._extract_patch(clean_img, top, left)
             degraded_patch = self._extract_patch(degraded_img, top, left)
-            
+
         else:
             # Mode validation: utiliser images complètes ou patches centraux
-            img_name = self.image_names[idx]
-            
-            clean_img = self._load_image(self.clean_dir / img_name)
-            degraded_img = self._load_image(self.degraded_dir / img_name)
-            
+            clean_relpath, degraded_relpath = self.image_pairs[idx]
+            clean_img = self._load_image(self.clean_dir / clean_relpath)
+            degraded_img = self._load_image(self.degraded_dir / degraded_relpath)
+
             # Crop central si image > patch_size
             if clean_img.width > self.patch_size or clean_img.height > self.patch_size:
                 # Patch central
                 left = (clean_img.width - self.patch_size) // 2
                 top = (clean_img.height - self.patch_size) // 2
-                
+
                 clean_patch = self._extract_patch(clean_img, top, left)
                 degraded_patch = self._extract_patch(degraded_img, top, left)
             else:
@@ -136,7 +181,7 @@ class ImageRestorationDataset(Dataset):
         degraded_patch = self.normalize(degraded_patch)
         clean_patch = self.normalize(clean_patch)
         
-        return degraded_patch, clean_patch, img_name
+        return degraded_patch, clean_patch, str(clean_relpath)
 
 
 class PatchDataset(Dataset):
