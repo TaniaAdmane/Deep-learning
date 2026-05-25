@@ -118,6 +118,8 @@ class VAETrainer:
             epoch_loss += loss_dict['total']
             epoch_recon_loss += loss_dict['reconstruction']
             epoch_kl_loss += loss_dict['kl']
+            if batch_idx == 0:  # Premier batch seulement
+                print(f"DEBUG: KL from loss_dict = {loss_dict['kl']:.4f}")
             epoch_perceptual_loss += loss_dict['perceptual']
             
             # Update progress bar
@@ -147,10 +149,10 @@ class VAETrainer:
     
     @torch.no_grad()
     def validate(self):
-        """Validation du modèle"""
         self.model.eval()
         
         val_loss = 0.0
+        val_kl_loss = 0.0  # ⬅️ AJOUT
         metrics_tracker = MetricsTracker()
         
         for degraded, clean, _ in tqdm(self.val_loader, desc="Validation"):
@@ -169,6 +171,7 @@ class VAETrainer:
             )
             
             val_loss += loss_dict['total']
+            val_kl_loss += loss_dict['kl']  
             
             # Métriques
             metrics = self.metrics_calculator.calculate_all_metrics(recon, clean)
@@ -176,10 +179,12 @@ class VAETrainer:
         
         # Moyennes
         val_loss /= len(self.val_loader)
+        val_kl_loss /= len(self.val_loader)  
         avg_metrics = metrics_tracker.get_average()
+        avg_metrics['kl'] = val_kl_loss  
         
         return val_loss, avg_metrics
-    
+        
     def save_checkpoint(self, is_best=False, filename='checkpoint.pth'):
         """Sauvegarde checkpoint"""
         checkpoint = {
@@ -295,11 +300,9 @@ class VAETrainer:
                 self.best_val_psnr = val_metrics['psnr']
                 self.best_val_loss = val_loss
             
-            self.save_checkpoint(is_best=is_best, filename=f'checkpoint_epoch_{epoch}.pth')
+            if is_best:
+                self.save_checkpoint(is_best=True, filename='best_model.pth')
             
-            # Sauvegarde régulière
-            if epoch % 10 == 0:
-                self.save_checkpoint(filename=f'checkpoint_epoch_{epoch}.pth')
         
         print(f"\n{'='*60}")
         print(f"Training completed!")

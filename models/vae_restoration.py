@@ -233,14 +233,11 @@ def vae_loss(recon, target, mu, logvar, beta=1.0, perceptual_weight=0.0, lpips_f
         total_loss: scalar
         loss_dict: dictionary with individual losses
     """
-    batch_size = recon.size(0)
+    # 1. Reconstruction Loss (MSE) - moyenne sur tout
+    recon_loss = F.mse_loss(recon, target, reduction='mean')
     
-    # 1. Reconstruction Loss (MSE)
-    recon_loss = F.mse_loss(recon, target, reduction='sum') / batch_size
-    
-    # 2. KL Divergence
-    # KL(N(mu, sigma) || N(0, 1)) = -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / batch_size
+    # 2. KL Divergence - moyenne sur batch et latent dim
+    kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
     
     # 3. Perceptual Loss (LPIPS) - optionnel
     perceptual_loss = torch.tensor(0.0, device=recon.device)

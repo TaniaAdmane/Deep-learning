@@ -52,11 +52,11 @@ class ImageRestorationDataset(Dataset):
         self.to_tensor = transforms.ToTensor()  # [0, 1]
         self.normalize = transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])  # [-1, 1]
         
-        # Augmentation
+        # Augmentation - CORRIGÉ
         if augment:
             self.augment_transforms = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
             ])
     
     def __len__(self):
@@ -147,6 +147,23 @@ class ImageRestorationDataset(Dataset):
             # Extraire patches
             clean_patch = self._extract_patch(clean_img, top, left)
             degraded_patch = self._extract_patch(degraded_img, top, left)
+            
+            # Augmentation AVANT conversion en tenseur
+            if self.augment:
+                # Appliquer les mêmes transformations aux deux patches
+                seed = random.randint(0, 2**32 - 1)
+                
+                random.seed(seed)
+                torch.manual_seed(seed)
+                clean_patch = self.augment_transforms(clean_patch)
+                
+                random.seed(seed)
+                torch.manual_seed(seed)
+                degraded_patch = self.augment_transforms(degraded_patch)
+
+            # Convertir en tenseurs APRÈS augmentation
+            clean_patch = self.to_tensor(clean_patch)
+            degraded_patch = self.to_tensor(degraded_patch)
 
         else:
             # Mode validation: utiliser images complètes ou patches centraux
@@ -165,24 +182,16 @@ class ImageRestorationDataset(Dataset):
             else:
                 clean_patch = clean_img
                 degraded_patch = degraded_img
-        
-        # Convertir en tenseurs
-        clean_patch = self.to_tensor(clean_patch)
-        degraded_patch = self.to_tensor(degraded_patch)
-        
-        # Augmentation (même transformation pour les deux)
-        if self.augment and self.is_train:
-            # Stack pour appliquer même transformation
-            stacked = torch.stack([degraded_patch, clean_patch], dim=0)
-            stacked = self.augment_transforms(stacked)
-            degraded_patch, clean_patch = stacked[0], stacked[1]
+            
+            # Convertir en tenseurs (pas d'augmentation en validation)
+            clean_patch = self.to_tensor(clean_patch)
+            degraded_patch = self.to_tensor(degraded_patch)
         
         # Normaliser [-1, 1]
         degraded_patch = self.normalize(degraded_patch)
         clean_patch = self.normalize(clean_patch)
         
         return degraded_patch, clean_patch, str(clean_relpath)
-
 
 class PatchDataset(Dataset):
     """
@@ -207,11 +216,11 @@ class PatchDataset(Dataset):
         self.to_tensor = transforms.ToTensor()
         self.normalize = transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
         
+        # Augmentation
         if augment:
             self.augment_transforms = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
-                transforms.RandomRotation(degrees=90, expand=False),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
             ])
     
     def __len__(self):
@@ -233,7 +242,7 @@ class PatchDataset(Dataset):
             stacked = torch.stack([degraded, clean], dim=0)
             stacked = self.augment_transforms(stacked)
             degraded, clean = stacked[0], stacked[1]
-        
+                
         # Normaliser
         degraded = self.normalize(degraded)
         clean = self.normalize(clean)
@@ -311,11 +320,9 @@ def create_dataloaders(
 
 # Test
 if __name__ == "__main__":
-    # Exemple d'utilisation
     print("Testing dataset...")
     
     # Simuler création de quelques images de test
-    import os
     os.makedirs("test_data/train/clean", exist_ok=True)
     os.makedirs("test_data/train/degraded", exist_ok=True)
     
