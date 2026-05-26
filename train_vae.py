@@ -47,7 +47,10 @@ class VAETrainer:
         
         # Optimizer
         self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-        
+
+        # Mixed precision
+        self.scaler = torch.cuda.amp.GradScaler(enabled=(device == 'cuda'))
+
         # Scheduler (optionnel)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer,
@@ -95,24 +98,22 @@ class VAETrainer:
             clean = clean.to(self.device)
             
             # Forward pass
-            recon, mu, logvar = self.model(degraded)
-            
-            # Loss
-            loss, loss_dict = vae_loss(
-                recon, clean, mu, logvar,
-                beta=self.beta,
-                perceptual_weight=self.perceptual_weight,
-                lpips_fn=self.lpips_fn
-            )
-            
-            # Backward
             self.optimizer.zero_grad()
-            loss.backward()
-            
-            # Gradient clipping (évite explosion)
+            with torch.amp.autocast('cuda', enabled=(self.device == 'cuda')):
+                recon, mu, logvar = self.model(degraded)
+                loss, loss_dict = vae_loss(
+                    recon, clean, mu, logvar,
+                    beta=self.beta,
+                    perceptual_weight=self.perceptual_weight,
+                    lpips_fn=self.lpips_fn
+                )
+
+            # Backward
+            self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            
-            self.optimizer.step()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
             
             # Tracking
             epoch_loss += loss_dict['total']

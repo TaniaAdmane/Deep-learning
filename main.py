@@ -24,7 +24,7 @@ def train_example():
         'beta': 0.0,                # Phase 1 : autoencoder pur
         'perceptual_weight': 0.0,
         'latent_dim': 256,
-        'noise_sigma': 25,          # Niveau de bruit (15=léger, 25=moyen, 50=fort)
+        'noise_sigma': (5, 75),     # Plage aléatoire : blind denoising (valeur fixe ex: 25 pour mode ciblé)
         'generate_noise': True      # Génération dynamique !
     }
     
@@ -44,7 +44,8 @@ def train_example():
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"🚀 Using {device}")
-    print(f"🎯 Mode: DENOISING dynamique (σ={config['noise_sigma']})")
+    sigma_info = f"σ∈{config['noise_sigma']}" if isinstance(config['noise_sigma'], tuple) else f"σ={config['noise_sigma']}"
+    print(f"🎯 Mode: DENOISING dynamique ({sigma_info})")
     
     # Data loaders avec génération de bruit dynamique
     print("\nCreating data loaders...")
@@ -56,6 +57,7 @@ def train_example():
         patch_size=config['patch_size'],
         batch_size=config['batch_size'],
         num_workers=4,
+        num_patches_per_image=4,
         noise_sigma=config['noise_sigma'],
         generate_noise=config['generate_noise']
     )
@@ -78,7 +80,7 @@ def train_example():
         learning_rate=config['learning_rate'],
         beta=config['beta'],
         perceptual_weight=config['perceptual_weight'],
-        checkpoint_dir=str(Path.home() / 'work/checkpoints'),
+        checkpoint_dir=str(Path('/home/onyxia/work/Deep-learning/checkpoints')),
         log_dir=str(Path.home() / 'work/logs')
     )
     

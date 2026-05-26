@@ -1,2 +1,9 @@
 # Ignore dataset files and large raw data
 /data/
+
+# Checkpoints (trop lourds pour GitHub)
+checkpoints/
+
+# Cache Python
+__pycache__/
+*.pyc

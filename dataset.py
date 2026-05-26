@@ -157,7 +157,11 @@ class ImageRestorationDataset(Dataset):
             
             # GÉNÉRER BRUIT DYNAMIQUEMENT
             if self.generate_noise:
-                degraded_patch = self._add_gaussian_noise(clean_patch, self.noise_sigma)
+                if isinstance(self.noise_sigma, (list, tuple)):
+                    sigma = random.uniform(self.noise_sigma[0], self.noise_sigma[1])
+                else:
+                    sigma = self.noise_sigma
+                degraded_patch = self._add_gaussian_noise(clean_patch, sigma)
             else:
                 # Charger degraded existant (mode SR ou autre)
                 degraded_img = self._load_image(self.degraded_dir / clean_relpath)
@@ -189,7 +193,11 @@ class ImageRestorationDataset(Dataset):
             
             # GÉNÉRER BRUIT
             if self.generate_noise:
-                degraded_patch = self._add_gaussian_noise(clean_patch, self.noise_sigma)
+                if isinstance(self.noise_sigma, (list, tuple)):
+                    sigma = random.uniform(self.noise_sigma[0], self.noise_sigma[1])
+                else:
+                    sigma = self.noise_sigma
+                degraded_patch = self._add_gaussian_noise(clean_patch, sigma)
             else:
                 degraded_img = self._load_image(self.degraded_dir / clean_relpath)
                 if degraded_img.size != (clean_img.width, clean_img.height):
@@ -281,15 +289,19 @@ def create_dataloaders(
         shuffle=True,
         num_workers=num_workers,
         pin_memory=True,
-        drop_last=True
+        drop_last=True,
+        persistent_workers=(num_workers > 0),
+        prefetch_factor=2 if num_workers > 0 else None
     )
-    
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=True,
+        persistent_workers=(num_workers > 0),
+        prefetch_factor=2 if num_workers > 0 else None
     )
     
     return train_loader, val_loader
