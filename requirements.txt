@@ -1,6 +1,7 @@
-# PyTorch et Vision
-torch>=2.0.0
-torchvision>=0.15.0
+# PyTorch et Vision (CUDA 12.1)
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.3.0
+torchvision==0.18.0
 
 # Métriques perceptuelles
 lpips>=0.1.4

@@ -38,10 +38,10 @@ def train_example():
             raise FileNotFoundError(f"❌ {name} not found at {path}")
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"🚀 Using {device}")
+    print(f" Using {device}")
     
     # Data loaders
-    print("\n📊 Creating data loaders...")
+    print("\nCreating data loaders...")
     train_loader, val_loader = create_dataloaders(
         train_clean_dir=paths['train_clean'],
         train_degraded_dir=paths['train_degraded'],
@@ -53,7 +53,7 @@ def train_example():
     )
     
     # Model
-    print("\n🏗️ Building model...")
+    print("\n Building model...")
     model = VAE_Restoration(
         input_channels=3,
         latent_dim=config['latent_dim'],
@@ -61,7 +61,7 @@ def train_example():
     )
     
     # Trainer
-    print("\n🎯 Initializing trainer...")
+    print("\n Initializing trainer...")
     trainer = VAETrainer(
         model=model,
         train_loader=train_loader,
@@ -75,10 +75,10 @@ def train_example():
     )
     
     # Train!
-    print("\n🚀 Starting training...")
+    print("\n Starting training...")
     trainer.train(num_epochs=config['num_epochs'])
     
-    print("\n✅ Training completed!")
+    print("\n Training completed!")
 
 
 if __name__ == "__main__":
