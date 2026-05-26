@@ -15,10 +15,10 @@ def train_example():
     config = {
         'patch_size': 128,
         'batch_size': 16,
-        'num_epochs': 50,
-        'learning_rate': 1e-4,
-        'beta': 0.001,
-        'perceptual_weight': 0.1,
+        'num_epochs': 30,
+        'learning_rate': 1e-4,     
+        'beta': 0.001,               
+        'perceptual_weight': 0.0,   
         'latent_dim': 256
     }
     

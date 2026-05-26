@@ -80,6 +80,32 @@ class VAE_Restoration(nn.Module):
             nn.Conv2d(base_channels, input_channels, 3, padding=1),
             nn.Tanh()  # Output range [-1, 1]
         )
+        
+        # Initialize weights for numerical stability
+        self._initialize_weights()
+    
+    def _initialize_weights(self):
+        """
+        Weight initialization for numerical stability
+        Critical for preventing KL divergence explosion
+        """
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+        
+        # Special initialization for logvar: start with small variance
+        # logvar = -5 → exp(-5) = 0.0067 → very small initial variance
+        nn.init.xavier_uniform_(self.fc_logvar.weight, gain=0.01)
+        nn.init.constant_(self.fc_logvar.bias, -5.0)
     
     def _make_encoder_block(self, in_channels, out_channels):
         """Encoder block: Conv -> BN -> ReLU -> Conv -> BN -> ReLU -> Downsample"""
@@ -140,6 +166,10 @@ class VAE_Restoration(nn.Module):
         # Project to latent space
         mu = self.fc_mu(h)
         logvar = self.fc_logvar(h)
+        
+        # CRITICAL: Clip logvar to prevent numerical overflow
+        # exp(10) = 22026, exp(-10) = 0.000045
+        logvar = torch.clamp(logvar, min=-10, max=10)
         
         return mu, logvar
     

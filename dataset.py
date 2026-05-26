@@ -140,9 +140,25 @@ class ImageRestorationDataset(Dataset):
             # Charger images complètes
             clean_img = self._load_image(self.clean_dir / clean_relpath)
             degraded_img = self._load_image(self.degraded_dir / degraded_relpath)
+            
+            # CRITICAL: Si l'image dégradée est plus petite (LR), l'upsampler à la taille de clean
+            if degraded_img.size != clean_img.size:
+                degraded_img = degraded_img.resize(clean_img.size, Image.BICUBIC)
 
             # Coordonnées aléatoires (mêmes pour clean et degraded)
-            top, left = self._get_random_patch_coords(clean_img.width, clean_img.height)
+            # S'assurer qu'elles sont valides après upsampling
+            max_left = min(clean_img.width, degraded_img.width) - self.patch_size
+            max_top = min(clean_img.height, degraded_img.height) - self.patch_size
+            
+            if max_left <= 0 or max_top <= 0:
+                # Image trop petite, resize à la taille minimale requise
+                target_size = (self.patch_size, self.patch_size)
+                clean_img = clean_img.resize(target_size, Image.BICUBIC)
+                degraded_img = degraded_img.resize(target_size, Image.BICUBIC)
+                top, left = 0, 0
+            else:
+                left = random.randint(0, max_left)
+                top = random.randint(0, max_top)
 
             # Extraire patches
             clean_patch = self._extract_patch(clean_img, top, left)
@@ -164,24 +180,42 @@ class ImageRestorationDataset(Dataset):
             # Convertir en tenseurs APRÈS augmentation
             clean_patch = self.to_tensor(clean_patch)
             degraded_patch = self.to_tensor(degraded_patch)
+            
+            # SAFETY CHECK: Vérifier que le patch n'est pas complètement noir/blanc
+            # (peut arriver avec des coordonnées hors limites ou images corrompues)
+            if degraded_patch.max() - degraded_patch.min() < 0.01:
+                # Patch invalide, forcer re-sampling
+                raise ValueError("Invalid patch: no variation in degraded image")
 
         else:
             # Mode validation: utiliser images complètes ou patches centraux
             clean_relpath, degraded_relpath = self.image_pairs[idx]
             clean_img = self._load_image(self.clean_dir / clean_relpath)
             degraded_img = self._load_image(self.degraded_dir / degraded_relpath)
+            
+            # CRITICAL: Si l'image dégradée est plus petite (LR), l'upsampler à la taille de clean
+            if degraded_img.size != clean_img.size:
+                degraded_img = degraded_img.resize(clean_img.size, Image.BICUBIC)
 
             # Crop central si image > patch_size
             if clean_img.width > self.patch_size or clean_img.height > self.patch_size:
-                # Patch central
-                left = (clean_img.width - self.patch_size) // 2
-                top = (clean_img.height - self.patch_size) // 2
+                # Patch central - vérifier les dimensions
+                if clean_img.width >= self.patch_size and clean_img.height >= self.patch_size:
+                    left = (clean_img.width - self.patch_size) // 2
+                    top = (clean_img.height - self.patch_size) // 2
 
-                clean_patch = self._extract_patch(clean_img, top, left)
-                degraded_patch = self._extract_patch(degraded_img, top, left)
+                    clean_patch = self._extract_patch(clean_img, top, left)
+                    degraded_patch = self._extract_patch(degraded_img, top, left)
+                else:
+                    # Image trop petite, resize
+                    target_size = (self.patch_size, self.patch_size)
+                    clean_patch = clean_img.resize(target_size, Image.BICUBIC)
+                    degraded_patch = degraded_img.resize(target_size, Image.BICUBIC)
             else:
-                clean_patch = clean_img
-                degraded_patch = degraded_img
+                # Image déjà assez petite, resize direct
+                target_size = (self.patch_size, self.patch_size)
+                clean_patch = clean_img.resize(target_size, Image.BICUBIC)
+                degraded_patch = degraded_img.resize(target_size, Image.BICUBIC)
             
             # Convertir en tenseurs (pas d'augmentation en validation)
             clean_patch = self.to_tensor(clean_patch)
@@ -190,6 +224,16 @@ class ImageRestorationDataset(Dataset):
         # Normaliser [-1, 1]
         degraded_patch = self.normalize(degraded_patch)
         clean_patch = self.normalize(clean_patch)
+        
+        # DEBUG : Vérifier normalisation (premier échantillon seulement)
+        if idx == 0 and self.is_train:
+            print(f"\n{'='*60}")
+            print(f"DEBUG DATASET (Training):")
+            print(f"  Degraded - min: {degraded_patch.min():.4f}, max: {degraded_patch.max():.4f}")
+            print(f"  Clean - min: {clean_patch.min():.4f}, max: {clean_patch.max():.4f}")
+            print(f"  Mean degraded: {degraded_patch.mean():.4f}")
+            print(f"  Mean clean: {clean_patch.mean():.4f}")
+            print(f"{'='*60}\n")
         
         return degraded_patch, clean_patch, str(clean_relpath)
 
