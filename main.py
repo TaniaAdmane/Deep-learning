@@ -21,7 +21,7 @@ def train_example():
         'batch_size': 16,
         'num_epochs': 30,
         'learning_rate': 1e-4,
-        'beta': 0.0,                # Phase 1 : autoencoder pur
+        'beta': 0.0,               
         'perceptual_weight': 0.0,
         'latent_dim': 256,
         'noise_sigma': (5, 75),     # Plage aléatoire : blind denoising (valeur fixe ex: 25 pour mode ciblé)
@@ -80,8 +80,8 @@ def train_example():
         learning_rate=config['learning_rate'],
         beta=config['beta'],
         perceptual_weight=config['perceptual_weight'],
-        checkpoint_dir=str(Path('/home/onyxia/work/Deep-learning/checkpoints')),
-        log_dir=str(Path.home() / 'work/logs')
+        checkpoint_dir='/tmp/checkpoints',
+        log_dir='/tmp/logs'
     )
     
     # Train!

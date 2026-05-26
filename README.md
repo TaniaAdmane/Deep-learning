@@ -55,7 +55,7 @@ echo "  2. Lancer entraînement: python main.py train"
 lancer la creation du bruit et Lancer l'entrainement
 
 ```bash
-python main.py train
+python main_unet_vae.py
 ```
 
-mais les resultats sont cata a corriger
+l'analyse est dans analysis.ipynb
