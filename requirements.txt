@@ -1,7 +1,8 @@
-# PyTorch et Vision (CUDA 12.1)
---extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.3.0
-torchvision==0.18.0
+# PyTorch et Vision (CUDA 12.4 - compatible avec driver CUDA 12.9)
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+nvidia-cusparselt-cu12==0.6.2
 
 # Métriques perceptuelles
 lpips>=0.1.4
