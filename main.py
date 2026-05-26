@@ -1,46 +1,52 @@
 """
-Exemple d'utilisation - Version Simple (données locales)
+DENOISING avec génération de bruit dynamique
+Zéro stockage supplémentaire!
 """
 
 import torch
 from pathlib import Path
+import sys
+sys.path.insert(0, '/mnt/project')
+
 from models.vae_restoration import VAE_Restoration
 from dataset import create_dataloaders
 from train_vae import VAETrainer
 
 
 def train_example():
-    """Entraînement avec données locales"""
+    """Entraînement DENOISING avec bruit généré à la volée"""
     
     config = {
         'patch_size': 128,
         'batch_size': 16,
         'num_epochs': 30,
-        'learning_rate': 1e-4,     
-        'beta': 0.001,               
-        'perceptual_weight': 0.0,   
-        'latent_dim': 256
+        'learning_rate': 1e-4,
+        'beta': 0.0,                # Phase 1 : autoencoder pur
+        'perceptual_weight': 0.0,
+        'latent_dim': 256,
+        'noise_sigma': 25,          # Niveau de bruit (15=léger, 25=moyen, 50=fort)
+        'generate_noise': True      # Génération dynamique !
     }
     
-    # Chemins locaux
+    # Chemins (seulement clean, pas besoin de noisy!)
     data_dir = Path.home() / 'work/data'
     
     paths = {
         'train_clean': str(data_dir / 'train/clean'),
-        'train_degraded': str(data_dir / 'train/degraded'),
+        'train_degraded': None,  # Pas utilisé en mode denoising dynamique
         'val_clean': str(data_dir / 'val/clean'),
-        'val_degraded': str(data_dir / 'val/degraded')
+        'val_degraded': None     # Pas utilisé
     }
     
-    # Vérifier
-    for name, path in paths.items():
-        if not Path(path).exists():
-            raise FileNotFoundError(f"❌ {name} not found at {path}")
+    # Vérifier que clean existe
+    if not Path(paths['train_clean']).exists():
+        raise FileNotFoundError(f"❌ {paths['train_clean']} not found!")
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f" Using {device}")
+    print(f"🚀 Using {device}")
+    print(f"🎯 Mode: DENOISING dynamique (σ={config['noise_sigma']})")
     
-    # Data loaders
+    # Data loaders avec génération de bruit dynamique
     print("\nCreating data loaders...")
     train_loader, val_loader = create_dataloaders(
         train_clean_dir=paths['train_clean'],
@@ -49,11 +55,13 @@ def train_example():
         val_degraded_dir=paths['val_degraded'],
         patch_size=config['patch_size'],
         batch_size=config['batch_size'],
-        num_workers=4  # OK pour local
+        num_workers=4,
+        noise_sigma=config['noise_sigma'],
+        generate_noise=config['generate_noise']
     )
     
     # Model
-    print("\n Building model...")
+    print("\n🏗️  Building model...")
     model = VAE_Restoration(
         input_channels=3,
         latent_dim=config['latent_dim'],
@@ -61,7 +69,7 @@ def train_example():
     )
     
     # Trainer
-    print("\n Initializing trainer...")
+    print("\n⚙️  Initializing trainer...")
     trainer = VAETrainer(
         model=model,
         train_loader=train_loader,
@@ -75,17 +83,15 @@ def train_example():
     )
     
     # Train!
-    print("\n Starting training...")
+    print("\n🎯 Starting training...")
     trainer.train(num_epochs=config['num_epochs'])
     
-    print("\n Training completed!")
+    print("\n✅ Training completed!")
 
 
 if __name__ == "__main__":
-    import sys
-    
     if len(sys.argv) < 2:
-        print("Usage: python example_usage.py train")
+        print("Usage: python main_denoising.py train")
         sys.exit(1)
     
     if sys.argv[1] == 'train':
