@@ -71,7 +71,7 @@ Les notebooks d'analyse comparative (PSNR/SSIM/LPIPS, OOD, hautes fréquences) s
 
 ## Visualisations
 
-Les graphiques (courbes de loss, exemples d'images débruitées, analyses hautes fréquences, heatmaps OOD) sont automatiquement enregistrés dans `graphs_figures/`.
+Les graphiques (courbes de loss, exemples d'images débruitées, analyses hautes fréquences, heatmaps OOD) sont automatiquement enregistrés et disponibles.
 
 ## Auteurs
 
