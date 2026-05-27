@@ -1,8 +1,3 @@
-"""
-DENOISING avec génération de bruit dynamique
-Zéro stockage supplémentaire!
-"""
-
 import torch
 from pathlib import Path
 import sys
@@ -24,8 +19,8 @@ def train_example():
         'beta': 0.0,               
         'perceptual_weight': 0.0,
         'latent_dim': 256,
-        'noise_sigma': (5, 75),     # Plage aléatoire : blind denoising (valeur fixe ex: 25 pour mode ciblé)
-        'generate_noise': True      # Génération dynamique !
+        'noise_sigma': (5, 75),     
+        'generate_noise': True    
     }
     
     # Chemins (seulement clean, pas besoin de noisy!)
@@ -40,12 +35,12 @@ def train_example():
     
     # Vérifier que clean existe
     if not Path(paths['train_clean']).exists():
-        raise FileNotFoundError(f"❌ {paths['train_clean']} not found!")
+        raise FileNotFoundError(f" {paths['train_clean']} not found!")
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"🚀 Using {device}")
+    print(f" Using {device}")
     sigma_info = f"σ∈{config['noise_sigma']}" if isinstance(config['noise_sigma'], tuple) else f"σ={config['noise_sigma']}"
-    print(f"🎯 Mode: DENOISING dynamique ({sigma_info})")
+    print(f" Mode: DENOISING dynamique ({sigma_info})")
     
     # Data loaders avec génération de bruit dynamique
     print("\nCreating data loaders...")
@@ -63,7 +58,7 @@ def train_example():
     )
     
     # Model
-    print("\n🏗️  Building model...")
+    print("\n  Building model...")
     model = VAE_Restoration(
         input_channels=3,
         latent_dim=config['latent_dim'],
@@ -71,7 +66,7 @@ def train_example():
     )
     
     # Trainer
-    print("\n⚙️  Initializing trainer...")
+    print("\n  Initializing trainer...")
     trainer = VAETrainer(
         model=model,
         train_loader=train_loader,
@@ -85,10 +80,10 @@ def train_example():
     )
     
     # Train!
-    print("\n🎯 Starting training...")
+    print("\n Starting training...")
     trainer.train(num_epochs=config['num_epochs'])
     
-    print("\n✅ Training completed!")
+    print("\n Training completed!")
 
 
 if __name__ == "__main__":
