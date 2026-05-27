@@ -1,61 +1,78 @@
-# Deep-learning
+# Deep Learning — Comparaison d'approches pour la restauration d'images
 
-La data que j'ai utilisé provient de https://ofsoundof.github.io/lsdir-data/. Je n'ai utilisé que les 4000 premieres images du train pour des raisons de stockages sur onycia (5000 premeires en HD) et la validation. 
+Ce projet compare trois architectures de deep learning pour la restauration d'images bruitées : une approche déterministe supervisée (U-Net), une approche générative supervisée (VAE) et une approche self-supervisée (Noise2Void). Il a été réalisé dans un cadre pédagogique afin d'analyser les forces et limites de chaque méthode.
 
-la data doit etre du format 
+- **U-Net** : modèle déterministe entraîné en apprentissage supervisé sur des paires (image bruitée, image propre). Il apprend à inverser directement la dégradation.
+- **VAE** (Variational Autoencoder) : modèle génératif qui apprend une représentation latente continue et structurée. Il peut débruiter en projetant l'image dans son espace latent et offre une meilleure robustesse hors distribution grâce à la régularisation KL.
+- **Noise2Void** : modèle self-supervisé qui apprend uniquement à partir d'images bruitées, sans jamais accéder à une image propre. Il prédit des pixels masqués à partir de leurs voisins, ce qui lui permet de généraliser à tout bruit spatialement indépendant.
 
-```txt
-data 
-    train
-        clean
-        degraded
-    val
-        clean
-        degraded 
-```
-Si sur mon compte onyxia commencer par telecharger la data en local : 
-```bash
-#!/bin/bash
+Les modèles sont évalués avec les métriques PSNR, SSIM et LPIPS, sur différents niveaux de bruit gaussien ainsi que sur des dégradations jamais vues à l'entraînement (bruit fort, sel et poivre, flou gaussien).
 
-# Nettoyer
-rm -rf ~/work/data
-echo " Création de la structure..."
-mkdir -p ~/work/data/train/clean
-mkdir -p ~/work/data/val/clean
+## Structure du projet
+DEEP-LEARNING/
+├── eval_results/          – Résultats des évaluations (métriques, logs)
+├── graphs_figures/        – Graphiques et figures générés
+├── logs/                  – Fichiers de log d'entraînement
+├── models/                – Modèles sauvegardés (checkpoints)
+├── notebooks_analysis/    – Notebooks d'analyse comparative
+├── dataset.py             – Chargement et prétraitement des données
+├── metrics.py             – Métriques (PSNR, SSIM, LPIPS)
+├── creer_bruit.py         – Génération de bruit sur les images
+├── train_unet.py          – Entraînement du U-Net
+├── train_vae.py           – Entraînement du VAE
+├── train_n2v.py           – Entraînement de Noise2Void
+├── evaluate_models.py     – Évaluation comparative des modèles
+├── evaluate_vae.py        – Évaluation spécifique du VAE
+├── main.py                – Script principal
+├── requirements.txt       – Dépendances Python
+└── README.md
 
-# Télécharger 5 dossiers pour train (~5000 images HR)
-mc cp --recursive s3/taniaadmane/dossier/train/clean/0001000/ ~/work/data/train/clean/0001000/
-mc cp --recursive s3/taniaadmane/dossier/train/clean/0002000/ ~/work/data/train/clean/0002000/
-mc cp --recursive s3/taniaadmane/dossier/train/clean/0003000/ ~/work/data/train/clean/0003000/
-mc cp --recursive s3/taniaadmane/dossier/train/clean/0004000/ ~/work/data/train/clean/0004000/
-mc cp --recursive s3/taniaadmane/dossier/train/clean/0005000/ ~/work/data/train/clean/0005000/
-
-# Validation (clean seulement)
-mc cp --recursive s3/taniaadmane/dossier/val/clean/ ~/work/data/val/clean/
-
-# Vérifier
-echo ""
-echo "VÉRIFICATION DU TÉLÉCHARGEMENT"
-echo "=================================="
-echo "=== Train clean ==="
-find ~/work/data/train/clean -name "*.png" | wc -l
-echo ""
-echo "=== Val clean ==="
-find ~/work/data/val/clean -name "*.png" | wc -l
-echo ""
-echo "=== Espace disque ==="
-df -h ~/work
-echo ""
-echo "Téléchargement terminé!"
-echo ""
-echo " Prochaines étapes:"
-echo "  1. Créer dataset bruité: python creer_bruitt.py"
-echo "  2. Lancer entraînement: python main.py train"
-```
-lancer la creation du bruit et Lancer l'entrainement
+## Installation
 
 ```bash
-python main_unet_vae.py
+python -m venv venv
+source venv/bin/activate      # Linux/Mac
+.\venv\Scripts\activate       # Windows
+pip install -r requirements.txt
 ```
 
-l'analyse est dans analysis.ipynb
+## Entraînement des modèles
+
+```bash
+# U-Net (supervisé)
+python train_unet.py
+
+# VAE (supervisé)
+python train_vae.py
+
+# Noise2Void (self-supervisé — ne nécessite pas d'images propres)
+python train_n2v.py
+```
+
+## Évaluation
+
+```bash
+# Évaluer le U-Net
+python evaluate_models.py
+
+# Évaluer le VAE
+python evaluate_vae.py
+```
+
+Les notebooks d'analyse comparative (PSNR/SSIM/LPIPS, OOD, hautes fréquences) sont disponibles dans `notebooks_analysis/`.
+
+## Résultats principaux
+
+| Modèle | PSNR σ=25 | PSNR σ=100 (OOD) | Sel & poivre | Flou gaussien |
+|--------|-----------|-------------------|--------------|----------------|
+| U-Net  | 26,96 dB  | 15,53 dB          | 19,87 dB     | 19,35 dB       |
+| VAE    | 27,07 dB  | **21,20 dB**      | 19,54 dB     | **19,84 dB**   |
+| N2V    | 22,63 dB  | 17,91 dB          | **21,49 dB** | 19,58 dB       |
+
+## Visualisations
+
+Les graphiques (courbes de loss, exemples d'images débruitées, analyses hautes fréquences, heatmaps OOD) sont automatiquement enregistrés dans `graphs_figures/`.
+
+## Auteurs
+
+Tania Admane, Tea Toscan Du Plantier, Ndoumbé Bayo
