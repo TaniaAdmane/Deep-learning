@@ -25,6 +25,7 @@ DEEP-LEARNING/
 ├── evaluate_vae.py        – Évaluation spécifique du VAE
 ├── main.py                – Script principal
 ├── requirements.txt       – Dépendances Python
+└── Deeplearning_project.pdf            – Rapport complet de l'étude
 └── README.md
 
 ## Installation
@@ -72,6 +73,10 @@ Les notebooks d'analyse comparative (PSNR/SSIM/LPIPS, OOD, hautes fréquences) s
 ## Visualisations
 
 Les graphiques (courbes de loss, exemples d'images débruitées, analyses hautes fréquences, heatmaps OOD) sont automatiquement enregistrés et disponibles.
+
+## Rapport
+
+Le rapport complet de l'étude (analyse des résultats, comparaison des modèles, discussion) est disponible dans le fichier `rapport.pdf` à la racine du repo.
 
 ## Auteurs
 
